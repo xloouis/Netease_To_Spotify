@@ -131,7 +131,7 @@ class NeteaseToSpotify:
             logger.debug(f"Found {len(existing_tracks)} existing tracks in playlist")
             
             # Get tracks from Netease playlist
-            netease_playlist_tracks_name_and_artist = self.get_netease_playlist_tracks_name_and_artist(playlist_id, limit)
+            netease_playlist_tracks_name_and_artist = self.get_netease_playlist_tracks_name_and_artist(playlist_info, limit)
             
             logger.info(f"---------- Inserting Songs to Spotify Playlist: {spotify_playlist_name} ----------")
             for name, artist, year in tqdm(netease_playlist_tracks_name_and_artist):
@@ -199,18 +199,17 @@ class NeteaseToSpotify:
             logger.error(f"Failed to create playlist {playlist_name}: {str(e)}")
             raise
 
-    def get_netease_playlist_tracks_name_and_artist(self, playlist_id, limit=0):
+    def get_netease_playlist_tracks_name_and_artist(self, playlist, limit=0):
         """
         Get tracks' name and 1st artist in the given Netease playlist
 
-        :param playlist_id: ID of the Netease playlist
+        :param playlist: Netease playlist
         :param limit: Maximum number of songs to return (0 for no limit)
-        :return: list of (name, artist) pairs of tracks in the playlist
+        :return: list of (name, artist) pairs of tracks in the playlist, in reverse order
         :rtype: list(tuple(str, str))
         """
         logger.info("---------- Getting Netease Cloud Music Data (this may take a few seconds) ----------")
         try:
-            playlist = apis.playlist.GetPlaylistInfo(playlist_id)
             track_ids = [track_id["id"] for track_id in playlist["playlist"]["trackIds"]]
             
             # Apply limit if specified
