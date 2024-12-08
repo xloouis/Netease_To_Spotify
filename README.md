@@ -2,38 +2,86 @@
 
 # 网易云音乐歌单迁移至Spotify
 
-## 3首歌/秒（Spotify API最近变慢了），保留原歌单顺序，支持任意歌单长度，全过程不产生费用
+Forked from [Netease-to-Spotify](https://github.com/muyangye/Netease_To_Spotify)
 
-## 运行
-1. 命令行输入`pip install -r requirements.txt`
-2. [创建Spotify app（如没有）](https://developer.spotify.com/documentation/web-api/concepts/apps)
-3. 替换`config.yml`里的所有值，说明如下:
-    - `client_id`: Spotify app的Client ID
-    - `client_id`: Spotify app的Client secret
-    - `redirect_uri`: Spotify app的Redirect URIs中任意一个
-    - `spotify_playlist_name`: 迁移过后在Spotify里的歌单名，如填已存在的歌单则把所有歌曲插入到歌单最前，否则先创建歌单再迁移
-    - `cover_image_path`: 新歌单封面图路径（图像大小必须小于256 KB），如歌单已存在则不适用，默认值为repo里的"assets/netease.png"
-    - `netease_playlist_id`: 想要迁移的网易云音乐歌单id，可通过网易云音乐Web端歌单链接拿到，比如链接为https://music.163.com/playlist?id=123456789&userid=xxxxxxxx<span>，歌单id就是123456789</span>
-4. 命令行输入`python cli.py`
-5. 浏览器弹窗提示登录Spotify
-6. 等待运行即可，命令行会显示进度，Spotify无版权的歌曲也会在命令行提示(详见下方)
+## Added
 
-## "无版权"歌曲
-由于之前版本经常会出现名字完全不同的歌也被加到Spotify里，现加入[year search query filter](https://developer.spotify.com/documentation/web-api/reference/search)缩小搜索范围（大幅减少，不代表完全没有了），但由于网易云音乐歌曲的收录时间可能和Spotify不同，这样会导致很多歌Spotify明明有，但是程序说没有。个人认为这样比不加year search query filter好处理，因为后者不易察觉，前者只需手动再加一次就好了，以下两种类型的歌曲最容易触发“无版权”:
-  - 年代久远的歌，Spotify显示原发行日期而网易云音乐显示开始有版权的日期，如
-    - ![](assets/a173ac5dc01437f35f3a6cfc2cc1d0b.png)
-    - ![](assets/3732801a646edf5f3acfd264cb159cb.png)
-  - 歌名在网易云音乐和Spotify不一样的歌（尤其是小语种歌名），如
-    - ![](assets/339ccec0c67d5ea9937582df35d69e4.png)
+- Support migrating multiple playlists
+- Add prefix to playlist name
+- Configurable logging with retention policies
+- Token caching for background operation
+- Automatic token refresh
 
-其余无版权歌曲大概率是Spotify真没版权
-<br/>
-为避免unicode exception，非英文的无版权歌曲会用字母提示![](assets/043655bf07fc66a9e36e0f7570b33d5.png)
+## Configuration
 
-## OAuth 2.0 Client
-虽然用的是Spotipy库，但之前写过一个适用于所有OAuth 2.0 app获取access token的基类，只需替换`OAuth2Client.py`中的`AUTHORIZATION_ENDPOINT`和`ACCESS_TOKEN_ENDPOINT`即可，详见[这篇博客](https://muyangye.github.io/2023/05/10/Netease-to-Spotify/) (不过抱歉是全英文的，因为本人是留学生在美国找工作所以就写了英文博客2333)
+The `config.yml` file supports the following configuration:
 
-## 鸣谢
-- [pyncm](https://github.com/mos9527/pyncm): 感谢老哥的网易云音乐API，真不理解为啥网易云音乐只开放API给合作方
-- [spotipy](https://github.com/spotipy-dev/spotipy): 本来研究了挺久OAuth 2.0写好所有raw requests的基类了，然后发现了这个。。。
-- [这个issue](https://github.com/Binaryify/NeteaseCloudMusicApi/issues/1121#issuecomment-774438040)
+```yaml
+client_id: "YOUR_CLIENT_ID_HERE"
+client_secret: "YOUR_CLIENT_SECRET_HERE"
+playlist_prefix: "[NetEase]"  # Optional prefix for all migrated playlists
+cover_image_path: "DESIRED_SPOTIFY_PLAYLIST_COVER_IMAGE_PATH"
+netease_playlists:  # List of playlists to migrate with their limits
+  - id: "YOUR_FIRST_NETEASE_PLAYLIST_ID"
+    limit: 50  # Optional: limit to first 50 songs (remove or set to 0 for no limit)
+  - id: "YOUR_SECOND_NETEASE_PLAYLIST_ID"
+    limit: 100  # Optional: limit to first 100 songs
+logging:
+  directory: "logs"  # Directory to store log files
+  retention:
+    max_size_gb: 5  # Maximum total size of log files in gigabytes
+    max_days: 30    # Maximum age of log files in days
+  level: "INFO"     # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+```
+
+## Features
+
+### Multiple Playlist Migration with Limits
+- Migrate multiple playlists in one go by listing their IDs in the `netease_playlists` configuration
+- Optionally limit the number of songs to migrate from each playlist
+- Each playlist can have its own limit, or no limit at all
+
+### Playlist Prefix
+Add a prefix to all migrated playlist names using the `playlist_prefix` configuration.
+
+### Logging System
+- Logs are stored in daily files (e.g., `2024-12-08.log`)
+- Configurable retention policies:
+  - Size-based: Remove oldest logs when total size exceeds limit
+  - Age-based: Remove logs older than specified days
+- Different logging levels for detailed debugging
+- Logs are stored in the configured directory (default: `logs/`)
+
+### Token System
+- First-time run requires browser authentication
+- Subsequent runs use cached token (no browser needed)
+- Token validity:
+  - Access token: Valid for 1 hour
+  - Refresh token: Valid indefinitely (until revoked)
+  - Automatic refresh when access token expires
+- Token is stored in `.spotify_token.json`
+- Token remains valid unless:
+  - You revoke access in Spotify account settings
+  - The app is removed from your Spotify account
+  - The client secret is changed
+
+## Running
+1. Install dependencies: `pip install -r requirements.txt`
+2. [Create Spotify app](https://developer.spotify.com/documentation/web-api/concepts/apps) (if you don't have one)
+3. Configure `config.yml` with your settings
+4. First run: `python cli.py` and complete the one-time browser authentication
+5. Subsequent runs can be done in background: `python cli.py &`
+6. The migration will proceed automatically, with progress logged to both console and log files
+
+### Running in Background
+After the initial authentication:
+1. The token is cached in `.spotify_token.json`
+2. You can run the script in background: `python cli.py &`
+3. Check the logs directory for progress
+
+### Token Troubleshooting
+If authentication fails:
+1. Check if your client_id and client_secret are correct
+2. Verify the app still exists in your Spotify account
+3. Check if you haven't revoked access for this app
+4. If issues persist, delete `.spotify_token.json` and re-authenticate

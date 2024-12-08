@@ -1,7 +1,17 @@
 ---
   client_id : "YOUR_CLIENT_ID_HERE"
   client_secret : "YOUR_CLIENT_SECRET_HERE"
-  redirect_uri : "YOUR_REDIRECT_URI_HERE"
-  spotify_playlist_name : "DESIRED_SPOTIFY_PLAYLIST_NAME"
+  playlist_prefix: "[NetEase] "  # Optional prefix for all migrated playlists (e.g. "[Netease] " or "网易云 - ")
   cover_image_path : "DESIRED_SPOTIFY_PLAYLIST_COVER_IMAGE_PATH"
-  netease_playlist_id : "YOUR_NETEASE_PLAYLIST_ID_TO_MIGRATE"
+  netease_playlists:  # List of playlists to migrate with their limits
+    - id: "YOUR_FIRST_NETEASE_PLAYLIST_ID"
+      limit: 50  # Limit to first 50 songs, use 0 or remove for no limit
+    - id: "YOUR_SECOND_NETEASE_PLAYLIST_ID"
+      limit: 100  # Limit to first 100 songs
+    # Add more playlists as needed
+  logging:
+    directory: "logs"  # Directory to store log files
+    retention:
+      max_size_gb: 5  # Maximum total size of log files in gigabytes
+      max_days: 30    # Maximum age of log files in days
+    level: "INFO"     # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL
