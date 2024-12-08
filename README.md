@@ -7,6 +7,7 @@ Forked from [Netease-to-Spotify](https://github.com/muyangye/Netease_To_Spotify)
 ## Added
 
 - Support migrating multiple playlists
+- Support playlist cover image, size limited to 256 KB, will use local image if failed to get from URL or size is too large
 - Add prefix to playlist name
 - Configurable logging with retention policies
 - Token caching for background operation

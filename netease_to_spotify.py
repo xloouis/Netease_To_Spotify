@@ -12,6 +12,7 @@ from loguru import logger
 import logger as log_setup
 import json
 import os
+import requests
 
 DEFAULT_COVER_PATH = "assets/netease.png"
 SPOTIFY_SCOPES = "playlist-modify-public playlist-modify-private user-library-read ugc-image-upload"
@@ -124,7 +125,7 @@ class NeteaseToSpotify:
             spotify_playlist_name = f"{self.playlist_prefix}{playlist_name}"
             
             logger.info(f"Creating/updating Spotify playlist: {spotify_playlist_name}")
-            spotify_playlist_id = self.get_or_create_playlist(spotify_playlist_name)
+            spotify_playlist_id = self.get_or_create_playlist(spotify_playlist_name, coverImgUrl=playlist_info["playlist"]["coverImgUrl"])
             
             # Get existing tracks in the Spotify playlist to avoid duplicates
             existing_tracks = self.get_playlist_tracks(spotify_playlist_id)
@@ -150,7 +151,7 @@ class NeteaseToSpotify:
         except Exception as e:
             logger.error(f"Failed to migrate playlist {playlist_id}: {str(e)}")
     
-    def get_or_create_playlist(self, playlist_name):
+    def get_or_create_playlist(self, playlist_name, coverImgUrl=None):
         """
         Get or create the playlist with the given name
 
@@ -168,13 +169,26 @@ class NeteaseToSpotify:
                     logger.debug(f"Found existing playlist: {playlist_name}")
                     break
             if not playlist_id:
-                playlist_id = self.create_playlist(playlist_name)
+                logger.info("Creating new playlist")
+                playlist_id = self.create_playlist(playlist_name, coverImgUrl)
+            else:
+                if coverImgUrl:
+                    logger.debug("Updating playlist cover image")
+                    try:
+                        b64_cover_image = self.get_base64_from_url(coverImgUrl)
+                        if b64_cover_image:
+                            self.spotify.playlist_upload_cover_image(playlist_id, b64_cover_image)
+                        logger.debug("Uploaded playlist cover image")
+                    except Exception as e:
+                        logger.error(f"Failed to update playlist cover image: {str(e)}")
+                else:
+                    logger.debug("No cover image to update")
         except Exception as e:
             logger.error(f"Failed to get or create playlist {playlist_name}: {str(e)}")
             raise
         return playlist_id
 
-    def create_playlist(self, playlist_name):
+    def create_playlist(self, playlist_name, coverImgUrl=None):
         """
         Create a playlist
 
@@ -187,7 +201,12 @@ class NeteaseToSpotify:
             logger.info(f"Created new playlist: {playlist_name}")
             
             try:
-                b64_cover_image = self.get_base64_from_image(self.cover_image_path)
+                if coverImgUrl:
+                    b64_cover_image = self.get_base64_from_url(coverImgUrl)
+                    if not b64_cover_image:
+                        b64_cover_image = self.get_base64_from_image(self.cover_image_path)
+                else:
+                    b64_cover_image = self.get_base64_from_image(self.cover_image_path)
                 self.spotify.playlist_upload_cover_image(playlist_id, b64_cover_image)
                 logger.debug("Uploaded playlist cover image")
             except Exception as e:
@@ -233,6 +252,25 @@ class NeteaseToSpotify:
         except Exception as e:
             logger.error(f"Failed to get Netease playlist tracks: {str(e)}")
             raise
+
+    def get_base64_from_url(self, url):
+        """
+        Get the base64 representation of an image from a URL
+        
+        :param url: URL of the image to convert
+        :return: base64 representation as string
+        """
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raises an HTTPError for bad responses (4xx, 5xx)
+            base64_str = base64.b64encode(response.content).decode("utf-8")
+            if len(base64_str) > 256 * 1024:
+                logger.error(f"Playlist cover image is too large to upload: {len(base64_str)} bytes")
+                return None
+            return base64_str
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to fetch image from URL {url}: {str(e)}")
+            return None
 
     def get_base64_from_image(self, path):
         """
