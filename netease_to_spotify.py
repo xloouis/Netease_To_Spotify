@@ -147,7 +147,7 @@ class NeteaseToSpotify:
                     else:
                         logger.debug(f"Skipping duplicate track: {name} - {artist}")
                 except Exception as e:
-                    logger.warning(f"Spotify does not have this song's copyright: {unidecode(name)}, {unidecode(artist)}")
+                    logger.warning(f"Spotify does not have this song's copyright: {name}, {artist}, {year}")
         except Exception as e:
             logger.error(f"Failed to migrate playlist {playlist_id}: {str(e)}")
     
